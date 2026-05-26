@@ -2,6 +2,9 @@
 
 **Inference for Conditional Shapley Values via Copulas**
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20392903.svg)](https://doi.org/10.5281/zenodo.20392903)
+
+
 R implementation accompanying:
 
 > Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*. Working paper.
@@ -123,7 +126,7 @@ devtools::build_vignettes()
   author = {Agostino Gnasso},
   title  = {Inference for Conditional {Shapley} Values via Vine Copulas},
   year   = {2026},
-  note   = {Manuscript under review}
+  note   = {Working Paper}
 }
 ```
 
