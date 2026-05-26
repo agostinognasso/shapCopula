@@ -1,0 +1,21 @@
+# R package build artifacts
+*.Rproj.user
+*.Rhistory
+*.RData
+*.Ruserdata
+.DS_Store
+
+# Package build output
+/*.tar.gz
+/doc/
+/Meta/
+
+# Vignette artifacts
+vignettes/*.html
+vignettes/*.pdf
+
+# Rendered README (artifact, not source)
+README.html
+
+# Test output
+tests/testthat/Rplots.pdf

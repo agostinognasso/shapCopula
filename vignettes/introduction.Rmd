@@ -1,0 +1,147 @@
+---
+title: "Getting Started with shapCopula"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with shapCopula}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.width = 7, fig.height = 4
+)
+set.seed(42)
+```
+
+## Overview
+
+`shapCopula` computes **Conditional SAGE** (Shapley Additive Global
+importancE) values with asymptotically valid confidence intervals.
+The key idea is to estimate the conditional value function
+$$v(S;\, x) = \mathbb{E}[f(X) \mid X_S = x_S]$$
+using a **Gaussian copula with empirical marginals**, then apply a
+**one-step debiased estimator with K-fold cross-fitting** to obtain
+root-n consistent, asymptotically normal SAGE estimates.
+
+The companion paper is:
+
+> Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*. Manuscript under review.
+
+## Installation
+
+```r
+# From GitHub (recommended)
+remotes::install_github("agostinognasso/shapCopula")
+```
+
+## Minimal example
+
+We construct a simple data-generating process where $X_1$ and $X_2$ are
+correlated ($\rho = 0.6$) and $f$ depends linearly on $X_1$, $X_2$, and
+$X_3$, with $X_4$ and $X_5$ irrelevant.
+
+```{r dgp}
+library(shapCopula)
+
+n <- 500; p <- 5
+Sigma <- diag(p)
+Sigma[1, 2] <- Sigma[2, 1] <- 0.6   # X1 and X2 are correlated
+L <- chol(Sigma)
+X <- matrix(rnorm(n * p), n, p) %*% L
+colnames(X) <- paste0("X", seq_len(p))
+
+# A black-box predictor: truth is 2*X1 + X2 + 0.5*X3
+true_coef <- c(2, 1, 0.5, 0, 0)
+f_lin <- function(Xm) as.numeric(Xm %*% true_coef)
+```
+
+### Running the estimator
+
+The main function is `sage_cv_gcop()`. Set `K = 3` folds,
+`M = 30` permutations, `B = 20` conditional samples (default):
+
+```{r run, cache = TRUE}
+result <- sage_cv_gcop(f_lin, X, K = 3, M = 30, B = 20, seed = 1)
+print(result, digits = 3)
+```
+
+Each row reports:
+
+| Column | Meaning |
+|--------|---------|
+| `psi_hat` | SAGE estimate $\hat\Psi_j$ |
+| `se` | Asymptotic standard error |
+| `ci_lo`, `ci_hi` | 95% Wald confidence interval |
+| `z` | Wald statistic for $H_0: \Psi_j = 0$ |
+| `pvalue` | Two-sided p-value |
+
+### Visualising the results
+
+```{r plot, fig.alt = "SAGE bar chart with 95% CIs"}
+ord <- order(result$psi_hat)
+par(mar = c(4, 4, 2, 1))
+barplot(
+  result$psi_hat[ord],
+  names.arg = result$feature[ord],
+  horiz = TRUE, las = 1,
+  xlab = "Conditional SAGE value",
+  main = "Feature importance with 95% CIs"
+)
+# Add confidence intervals
+y_pos <- barplot(result$psi_hat[ord], plot = FALSE)
+arrows(result$ci_lo[ord], y_pos, result$ci_hi[ord], y_pos,
+       angle = 90, code = 3, length = 0.05)
+```
+
+### Comparison with the marginal baseline
+
+`sage_cv_marginal()` estimates the interventional SAGE (Janzing et al. 2020),
+which ignores conditional dependence. Under correlation, it can
+misattribute importance:
+
+```{r marginal, cache = TRUE}
+result_marg <- sage_cv_marginal(f_lin, X, K = 3, M = 30, B = 20, seed = 1)
+comparison <- data.frame(
+  feature    = result$feature,
+  conditional = round(result$psi_hat, 3),
+  marginal    = round(result_marg$psi_hat, 3)
+)
+print(comparison)
+```
+
+## Choosing the sampler
+
+| Function | Sampler | When to use |
+|----------|---------|-------------|
+| `sage_cv_gcop()` | Gaussian copula | Default — fast, works for $p \lesssim 15$ |
+| `sage_cv()` | Nonparametric vine copula | Stronger non-Gaussian dependence, $p \lesssim 10$ |
+| `sage_cv_marginal()` | Marginal bootstrap | Interventional baseline / competitor |
+
+## Tuning parameters
+
+- **`K`** (folds): 3 is the standard choice; use 5 for small $n$.
+- **`M`** (permutations): 30 gives stable estimates; increase to 50–100 for
+  publication-quality results. Runtime scales linearly in $M$.
+- **`B`** (conditional samples): 20 is default; the U-statistic debiasing
+  uses two sub-batches of $B/2$, so the effective sample size is $B/2$.
+  Increasing $B$ reduces Monte Carlo variance but increases runtime linearly.
+
+Sensitivity of coverage and power to these choices is studied in Appendix C
+of the companion paper.
+
+## Reproducibility
+
+Set the `seed` argument to any integer for deterministic results:
+
+```r
+sage_cv_gcop(f_lin, X, K = 3, M = 30, B = 20, seed = 2026)
+```
+
+## Session info
+
+```{r session}
+sessionInfo()
+```
