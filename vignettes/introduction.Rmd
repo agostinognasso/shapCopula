@@ -28,7 +28,7 @@ root-n consistent, asymptotically normal SAGE estimates.
 
 The companion paper is:
 
-> Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*. Manuscript under review.
+> Gnasso, A. (2026). *Semiparametric Inference for Conditional Shapley Feature Importance*. arXiv:2609.10313. <https://doi.org/10.48550/arXiv.2609.10313>
 
 ## Installation
 

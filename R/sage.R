@@ -10,13 +10,19 @@
 
 # Compute the N x p matrix of per-observation local SAGE contributions
 # using a U-statistic debiasing of the squared loss (Covert et al. 2020).
-# sampler_fn has signature: sampler_fn(S, x_S_matrix, B_per_row) -> matrix.
-.debiased_psi <- function(f_predict, X_eval, f_X_eval, sampler_fn, M, Bh) {
+#
+# `sampler_factory` is called once per Shapley permutation and returns the
+# sampler to use for that permutation, with signature
+# sampler_fn(S, x_S_matrix, B_per_row) -> matrix. Most samplers ignore the
+# permutation; the vine sampler uses it to fit a D-vine whose order makes every
+# coalition of that permutation exactly conditionable (see
+# vine_cond_sampler_exact).
+.debiased_psi <- function(f_predict, X_eval, f_X_eval, sampler_factory, M, Bh) {
   N <- nrow(X_eval)
   p <- ncol(X_eval)
   psi <- matrix(0, N, p)
 
-  delta_unb <- function(S) {
+  delta_unb <- function(S, sampler_fn) {
     if (length(S) == p) return(rep(0, N))
     if (length(S) == 0) {
       # v_empty = E[f(X)] is constant; N*Bh unconditional samples suffice.
@@ -35,13 +41,14 @@
   }
 
   for (m in seq_len(M)) {
-    perm <- sample(seq_len(p))
+    perm       <- sample(seq_len(p))
+    sampler_fn <- sampler_factory(perm)
     S      <- integer(0)
-    d_prev <- delta_unb(S)
+    d_prev <- delta_unb(S, sampler_fn)
     for (k in seq_len(p)) {
       j     <- perm[k]
       S_new <- c(S, j)
-      d_new <- delta_unb(S_new)
+      d_new <- delta_unb(S_new, sampler_fn)
       psi[, j] <- psi[, j] + (d_prev - d_new) / M
       S      <- S_new
       d_prev <- d_new
@@ -55,7 +62,7 @@
 
 # Runs K-fold cross-fitting: for each fold, calls fold_fn(train_idx, test_idx, X)
 # and assembles the global psi_local matrix, then computes Wald inference.
-.sage_crossfit <- function(f_predict, X, K, alpha, fold_fn) {
+.sage_crossfit <- function(f_predict, X, K, alpha, fold_fn, M = NA, sampler = NULL) {
   X   <- as.matrix(X)
   n   <- nrow(X); p <- ncol(X)
   nms <- colnames(X) %||% paste0("X", seq_len(p))
@@ -77,7 +84,7 @@
   ci_hi   <- psi_hat + stats::qnorm(1 - alpha / 2) * se
   pvalue  <- 2 * (1 - stats::pnorm(abs(z)))
 
-  data.frame(
+  out <- data.frame(
     feature = nms,
     psi_hat = psi_hat,
     se      = se,
@@ -87,6 +94,13 @@
     pvalue  = pvalue,
     row.names = NULL
   )
+  # `sage_estimate` only adds print/plot methods; the object stays a data.frame
+  # so that existing code that subsets or writes it out keeps working.
+  class(out) <- c("sage_estimate", "data.frame")
+  attr(out, "K") <- K
+  attr(out, "M") <- M
+  attr(out, "alpha") <- alpha
+  out
 }
 
 
@@ -139,8 +153,8 @@
 #' Monte-Carlo-squared noise bias from the plug-in squared estimator.
 #'
 #' @references
-#' Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*.
-#' Manuscript under review.
+#' Gnasso, A. (2026). *Semiparametric Inference for Conditional Shapley Feature Importance*.
+#' arXiv preprint, doi:10.48550/arXiv.2609.10313
 #'
 #' Covert, I., Lundberg, S., & Lee, S.-I. (2020). Understanding global feature
 #' contributions with additive importance measures. *NeurIPS*, 33.
@@ -172,10 +186,12 @@ sage_cv_gcop <- function(f_predict, X, K = 3L, M = 30L, B = 20L,
     f_X_test <- f_predict(X_test)
     sampler <- function(S, x_S_mat, B_per_row)
       gcop_cond_sampler(gcop, S, x_S_mat, B_per_row)
-    .debiased_psi(f_predict, X_test, f_X_test, sampler, M, Bh)
+    .debiased_psi(f_predict, X_test, f_X_test, function(perm) sampler, M, Bh)
   }
 
-  .sage_crossfit(f_predict, X, K, alpha, fold_fn)
+  res <- .sage_crossfit(f_predict, X, K, alpha, fold_fn, M = M)
+  attr(res, "sampler") <- "Gaussian copula"
+  res
 }
 
 
@@ -184,9 +200,10 @@ sage_cv_gcop <- function(f_predict, X, K = 3L, M = 30L, B = 20L,
 #' Conditional SAGE via Nonparametric Vine Copula with Cross-Fitting
 #'
 #' Computes global feature importance (SAGE) using the conditional value
-#' function estimated via a nonparametric vine copula (TLL kernel pairs)
-#' fitted with `rvinecopulib`. The conditional sampler uses Gaussian-kernel
-#' importance weighting on a pool of vine draws. Inference follows the same
+#' function estimated via a vine copula fitted with `rvinecopulib`. Conditional
+#' draws are exact: one D-vine is fitted per Shapley permutation, whose order is
+#' chosen so that every coalition visited along that permutation can be
+#' conditioned on through the Rosenblatt transform. Inference follows the same
 #' one-step cross-fitted Wald procedure as [shapCopula::sage_cv_gcop()].
 #'
 #' @inheritParams sage_cv_gcop
@@ -201,14 +218,21 @@ sage_cv_gcop <- function(f_predict, X, K = 3L, M = 30L, B = 20L,
 #' families the estimator is tractable for \eqn{p \lesssim 10}; consider
 #' `family_set = "parametric"` or [shapCopula::sage_cv_gcop()] for larger problems.
 #'
-#' The conditional sampler uses Gaussian-kernel importance reweighting of a
-#' pool of vine draws (Silverman bandwidth on the pseudo-observation scale),
-#' followed by exact pinning of the conditioning coordinates. This avoids
-#' refitting the vine for each coalition subset.
+#' **Conditional sampling.** The coalitions visited along a Shapley permutation
+#' are its prefixes. Fitting a D-vine whose variable order is the reversed
+#' permutation therefore makes each of them a *suffix* of the order, and for a
+#' D-vine the Rosenblatt transform conditions sequentially from the end of the
+#' order. Fixing the corresponding components of the transform and redrawing the
+#' rest as independent uniforms yields exact draws from
+#' \eqn{X_{-S} \mid X_S = x_S}, with no kernel smoothing and no importance
+#' weights. The cost is `M` vine fits per fold instead of one; the benefit is
+#' that the sampler is unbiased, whereas kernel reweighting shrinks conditional
+#' means toward the centre of the distribution at conditioning points in the
+#' tails.
 #'
 #' @references
-#' Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*.
-#' Manuscript under review.
+#' Gnasso, A. (2026). *Semiparametric Inference for Conditional Shapley Feature Importance*.
+#' arXiv preprint, doi:10.48550/arXiv.2609.10313
 #'
 #' @examples
 #' \donttest{
@@ -233,16 +257,26 @@ sage_cv <- function(f_predict, X, K = 3L, M = 30L, B = 20L,
   Bh <- max(2L, as.integer(B %/% 2))
 
   fold_fn <- function(train_idx, test_idx, X) {
-    vc_list  <- fit_copula(X[train_idx, , drop = FALSE],
-                           family_set = family_set, cores = cores)
+    X_tr     <- X[train_idx, , drop = FALSE]
     X_test   <- X[test_idx, , drop = FALSE]
     f_X_test <- f_predict(X_test)
-    sampler  <- function(S, x_S_mat, B_per_row)
-      vine_cond_sampler_batch(vc_list, S, x_S_mat, B_per_row)
-    .debiased_psi(f_predict, X_test, f_X_test, sampler, M, Bh)
+    # The coalitions visited along a Shapley permutation are its prefixes, which
+    # are the suffixes of the reversed order. Fitting one D-vine per permutation
+    # with that order therefore makes every coalition exactly conditionable via
+    # the Rosenblatt transform, at the cost of M vine fits per fold rather than
+    # one fit and an approximate sampler.
+    factory <- function(perm) {
+      vc_list <- fit_copula(X_tr, family_set = family_set, cores = cores,
+                            order = rev(perm))
+      function(S, x_S_mat, B_per_row)
+        vine_cond_sampler_exact(vc_list, S, x_S_mat, B_per_row)
+    }
+    .debiased_psi(f_predict, X_test, f_X_test, factory, M, Bh)
   }
 
-  .sage_crossfit(f_predict, X, K, alpha, fold_fn)
+  res <- .sage_crossfit(f_predict, X, K, alpha, fold_fn, M = M)
+  attr(res, "sampler") <- "vine copula (exact Rosenblatt)"
+  res
 }
 
 
@@ -300,8 +334,10 @@ sage_cv_marginal <- function(f_predict, X, K = 3L, M = 30L, B = 20L,
     f_X_test <- f_predict(X_test)
     sampler  <- function(S, x_S_mat, B_per_row)
       marg_cond_sampler(X_tr, S, x_S_mat, B_per_row)
-    .debiased_psi(f_predict, X_test, f_X_test, sampler, M, Bh)
+    .debiased_psi(f_predict, X_test, f_X_test, function(perm) sampler, M, Bh)
   }
 
-  .sage_crossfit(f_predict, X, K, alpha, fold_fn)
+  res <- .sage_crossfit(f_predict, X, K, alpha, fold_fn, M = M)
+  attr(res, "sampler") <- "marginal (interventional)"
+  res
 }

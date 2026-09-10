@@ -1,29 +1,31 @@
 Package: shapCopula
 Type: Package
-Title: Inference for Conditional Shapley Values via Copulas
+Title: Semiparametric Inference for Conditional Shapley Feature Importance
 Version: 0.1.0
-Authors@R: person("Agostino", "Gnasso",
-    email = "agostino.gnasso@unina.it",
-    role = c("aut", "cre", "cph"),
-    comment = c(ORCID = "0000-0002-8046-3923"))
-Author: Agostino Gnasso [aut, cre]
+Authors@R:
+    person(given = "Agostino",
+        family = "Gnasso",
+        role = c("aut", "cre", "cph"),
+        email = "agostino.gnasso@unina.it",
+        comment = c(ORCID = "0000-0002-8046-3923"))
 Maintainer: Agostino Gnasso <agostino.gnasso@unina.it>
 Description: Implements the one-step cross-fitted estimator for Conditional
     SAGE (Shapley Additive Global importancE) values introduced in Gnasso
-    (2026). The conditional value function E[f(X) | X_S = x_S] is estimated
-    via a Gaussian copula with empirical marginals (default) or a
-    nonparametric vine copula ('rvinecopulib'). The estimator uses K-fold
-    cross-fitting and a U-statistic debiasing step to yield asymptotically
-    valid Wald confidence intervals and two-sided hypothesis tests for global
-    feature importance. A marginal (interventional) SAGE baseline is included
-    for comparison with standard SHAP-based attributions.
+    (2026) <doi:10.48550/arXiv.2609.10313>. The conditional value function
+    E[f(X) | X_S = x_S] is estimated via a Gaussian copula with empirical
+    marginals (default) or a nonparametric vine copula ('rvinecopulib').
+    The estimator uses K-fold cross-fitting and a U-statistic debiasing step
+    to yield asymptotically valid Wald confidence intervals and two-sided
+    hypothesis tests for global feature importance. A marginal
+    (interventional) SAGE baseline is included for comparison with standard
+    SHAP-based attributions.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
+    graphics,
     rvinecopulib (>= 0.6.0),
     stats
 Suggests:
@@ -36,3 +38,4 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://github.com/agostinognasso/shapCopula
 BugReports: https://github.com/agostinognasso/shapCopula/issues
+Config/roxygen2/version: 8.0.0

@@ -1,0 +1,32 @@
+citHeader("To cite shapCopula in publications, please cite the paper. The software
+itself can be cited with the second entry when the implementation is relevant.")
+
+bibentry(
+  bibtype = "Misc",
+  title   = "Semiparametric Inference for Conditional Shapley Feature Importance",
+  author  = person(given = "Agostino", family = "Gnasso"),
+  year    = "2026",
+  eprint  = "2609.10313",
+  archivePrefix = "arXiv",
+  primaryClass  = "stat.ME",
+  doi     = "10.48550/arXiv.2609.10313",
+  textVersion = paste(
+    "Gnasso, A. (2026).",
+    "Semiparametric Inference for Conditional Shapley Feature Importance.",
+    "arXiv:2609.10313. doi:10.48550/arXiv.2609.10313"
+  )
+)
+
+bibentry(
+  bibtype = "Manual",
+  title   = "shapCopula: Semiparametric Inference for Conditional Shapley Feature Importance",
+  author  = person(given = "Agostino", family = "Gnasso"),
+  year    = "2026",
+  note    = "R package version 0.1.0",
+  url     = "https://github.com/agostinognasso/shapCopula",
+  textVersion = paste(
+    "Gnasso, A. (2026). shapCopula: Semiparametric Inference for Conditional",
+    "Shapley Feature Importance. R package version 0.1.0.",
+    "https://github.com/agostinognasso/shapCopula"
+  )
+)

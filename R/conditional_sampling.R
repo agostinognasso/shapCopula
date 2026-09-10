@@ -107,46 +107,52 @@ marg_cond_sampler <- function(X_train, S, x_S_matrix, B) {
 }
 
 
-# --- Vine copula batch sampler (importance-sampling) ------------------------
+# --- Vine copula conditional sampler (exact, via Rosenblatt) -----------------
 
-# Sample X_{-S} | X_S = x_S using importance-reweighted draws from the joint
-# vine copula. A pool of N_pool draws is reweighted by a Gaussian kernel on
-# the x_S coordinates; the resulting weighted sample is rounded to the
-# conditioning value on columns S for exact enforcement.
-vine_cond_sampler_batch <- function(vc_list, S, x_S_matrix, B) {
-  p  <- ncol(vc_list$X_train)
-  N  <- if (length(S) == 0) 1L else nrow(x_S_matrix)
+# Sample X_{-S} | X_S = x_S exactly, using the Rosenblatt transform of a vine
+# whose structure is a D-vine with S occupying the *last* positions of the
+# variable order.
+#
+# For such a vine the Rosenblatt map w = R(u) is sequential from the end of the
+# order, so the components w_S depend on u_S alone. Fixing those components and
+# redrawing the remaining ones as independent uniforms therefore yields exact
+# draws from the conditional law: no kernel smoothing, no importance weights.
+#
+# Callers must guarantee that S is a suffix of the order used to fit `vc`;
+# `vine_perm_sampler` below arranges this by fitting one D-vine per Shapley
+# permutation, whose nested coalitions are exactly the suffixes of that order.
+vine_cond_sampler_exact <- function(vc_list, S, x_S_matrix, B) {
+  p <- ncol(vc_list$X_train)
+  N <- if (length(S) == 0) 1L else nrow(x_S_matrix)
 
   if (length(S) == 0) {
-    U  <- rvinecopulib::rvinecop(N * B, vc_list$vc)
-    return(from_pseudo_obs(U, vc_list$sorted_cols))
+    U <- rvinecopulib::rvinecop(N * B, vc_list$vc)
+    out <- from_pseudo_obs(U, vc_list$sorted_cols)
+    colnames(out) <- colnames(vc_list$X_train)
+    return(out)
   }
   if (length(S) == p)
     return(as.matrix(x_S_matrix[rep(seq_len(N), each = B), , drop = FALSE]))
 
-  n_tr      <- nrow(vc_list$X_train)
-  pool_size <- max(2000L, N * B * 2L)
-  U_pool    <- rvinecopulib::rvinecop(pool_size, vc_list$vc)
-  X_pool    <- from_pseudo_obs(U_pool, vc_list$sorted_cols)
+  # x_S -> u_S on the copula scale (clipped away from the boundary).
+  U_S <- to_pseudo_obs_cols(x_S_matrix, vc_list$ecdfs[S], vc_list$n_train)
 
-  d    <- length(S)
-  sd_S <- apply(vc_list$X_train[, S, drop = FALSE], 2, stats::sd)
-  bw   <- silverman_bw(n_tr, d) * sd_S  # per-coordinate bandwidths
+  # w_S = Rosenblatt(u)_S depends only on u_S, so the remaining coordinates of
+  # the input are irrelevant and are filled with 0.5.
+  U_probe <- matrix(0.5, N, p)
+  U_probe[, S] <- U_S
+  W_S <- rvinecopulib::rosenblatt(U_probe, vc_list$vc)[, S, drop = FALSE]
 
-  out    <- matrix(NA_real_, N * B, p)
-  pool_S <- X_pool[, S, drop = FALSE]
+  # One batched inverse transform for all N * B draws.
+  W <- matrix(stats::runif(N * B * p), N * B, p)
+  W[, S] <- W_S[rep(seq_len(N), each = B), , drop = FALSE]
+  U_new <- rvinecopulib::inverse_rosenblatt(W, vc_list$vc)
 
-  for (i in seq_len(N)) {
-    z    <- sweep(pool_S, 2, as.numeric(x_S_matrix[i, ]), "-")
-    z    <- sweep(z, 2, bw, "/")
-    logw <- -0.5 * rowSums(z^2)
-    w    <- exp(logw - max(logw))
-    if (sum(w) < 1e-10) w <- rep(1, pool_size)
-    idx    <- sample.int(pool_size, B, replace = TRUE, prob = w)
-    chosen <- X_pool[idx, , drop = FALSE]
-    chosen[, S] <- matrix(as.numeric(x_S_matrix[i, ]), B, d, byrow = TRUE)
-    rows <- ((i - 1L) * B + 1L):(i * B)
-    out[rows, ] <- chosen
-  }
+  out <- from_pseudo_obs(U_new, vc_list$sorted_cols)
+  # Pin the conditioning coordinates to the exact requested values: the
+  # round-trip through the empirical quantile function is a step map and would
+  # otherwise return the nearest training value.
+  out[, S] <- as.matrix(x_S_matrix)[rep(seq_len(N), each = B), , drop = FALSE]
+  colnames(out) <- colnames(vc_list$X_train)
   out
 }

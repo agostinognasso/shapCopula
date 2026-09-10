@@ -4,7 +4,7 @@
 \alias{fit_copula}
 \title{Fit a Nonparametric Vine Copula with Empirical Marginals}
 \usage{
-fit_copula(X, family_set = "nonparametric", cores = 1)
+fit_copula(X, family_set = "nonparametric", cores = 1, order = NULL)
 }
 \arguments{
 \item{X}{Numeric matrix or data frame of shape n-by-p.}
@@ -15,6 +15,14 @@ Use \code{"parametric"} or a specific family vector for faster fitting.}
 
 \item{cores}{Integer. Number of cores for parallel pair-copula fitting
 (passed to \code{rvinecopulib::vinecop}).}
+
+\item{order}{Optional integer vector giving a variable order. When supplied,
+the structure is fixed to the D-vine with that order instead of being
+selected from the data. This is what makes exact conditional sampling
+possible: for a D-vine the Rosenblatt transform conditions sequentially
+from the end of the order, so any \emph{suffix} of \code{order} can be conditioned on
+exactly. \code{\link[=sage_cv]{sage_cv()}} uses this internally, fitting one D-vine
+per Shapley permutation.}
 }
 \value{
 A list with components:
@@ -23,6 +31,7 @@ A list with components:
 \item{\code{ecdfs}}{List of p empirical CDF functions.}
 \item{\code{sorted_cols}}{List of p sorted column vectors.}
 \item{\code{X_train}}{The original training matrix.}
+\item{\code{n_train}}{Number of training rows (used to clip pseudo-observations).}
 }
 }
 \description{

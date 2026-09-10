@@ -25,8 +25,8 @@
 #' @seealso [shapCopula::sage_cv_gcop()] for the main estimation workflow.
 #'
 #' @references
-#' Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*.
-#' Manuscript under review.
+#' Gnasso, A. (2026). *Semiparametric Inference for Conditional Shapley Feature Importance*.
+#' arXiv preprint, doi:10.48550/arXiv.2609.10313
 #'
 #' @examples
 #' set.seed(1)
@@ -68,6 +68,13 @@ fit_gauss_copula <- function(X) {
 #'   Use `"parametric"` or a specific family vector for faster fitting.
 #' @param cores Integer. Number of cores for parallel pair-copula fitting
 #'   (passed to `rvinecopulib::vinecop`).
+#' @param order Optional integer vector giving a variable order. When supplied,
+#'   the structure is fixed to the D-vine with that order instead of being
+#'   selected from the data. This is what makes exact conditional sampling
+#'   possible: for a D-vine the Rosenblatt transform conditions sequentially
+#'   from the end of the order, so any *suffix* of `order` can be conditioned on
+#'   exactly. [shapCopula::sage_cv()] uses this internally, fitting one D-vine
+#'   per Shapley permutation.
 #'
 #' @return A list with components:
 #' \describe{
@@ -75,6 +82,7 @@ fit_gauss_copula <- function(X) {
 #'   \item{`ecdfs`}{List of p empirical CDF functions.}
 #'   \item{`sorted_cols`}{List of p sorted column vectors.}
 #'   \item{`X_train`}{The original training matrix.}
+#'   \item{`n_train`}{Number of training rows (used to clip pseudo-observations).}
 #' }
 #'
 #' @details
@@ -99,18 +107,21 @@ fit_gauss_copula <- function(X) {
 #' }
 #'
 #' @export
-fit_copula <- function(X, family_set = "nonparametric", cores = 1) {
+fit_copula <- function(X, family_set = "nonparametric", cores = 1,
+                       order = NULL) {
   stopifnot(is.matrix(X) || is.data.frame(X))
   X <- as.matrix(X)
   p <- ncol(X)
   ecdfs       <- lapply(seq_len(p), function(j) stats::ecdf(X[, j]))
   sorted_cols <- lapply(seq_len(p), function(j) sort(X[, j]))
   U <- rvinecopulib::pseudo_obs(X, ties_method = "average")
-  vc <- rvinecopulib::vinecop(
-    U,
-    family_set    = family_set,
-    cores         = cores,
-    nonpar_method = "constant"
-  )
-  list(vc = vc, ecdfs = ecdfs, sorted_cols = sorted_cols, X_train = X)
+  args <- list(data = U, family_set = family_set, cores = cores,
+               nonpar_method = "constant")
+  if (!is.null(order)) {
+    stopifnot(setequal(order, seq_len(p)))
+    args$structure <- rvinecopulib::dvine_structure(order = order)
+  }
+  vc <- do.call(rvinecopulib::vinecop, args)
+  list(vc = vc, ecdfs = ecdfs, sorted_cols = sorted_cols,
+       X_train = X, n_train = nrow(X))
 }

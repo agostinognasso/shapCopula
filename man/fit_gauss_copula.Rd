@@ -39,8 +39,8 @@ dim(gc$Sigma)  # 4 x 4
 
 }
 \references{
-Gnasso, A. (2026). \emph{Inference for Conditional Shapley Values via Vine Copulas}.
-Manuscript under review.
+Gnasso, A. (2026). \emph{Semiparametric Inference for Conditional Shapley Feature Importance}.
+arXiv preprint, doi:10.48550/arXiv.2609.10313
 }
 \seealso{
 \code{\link[=sage_cv_gcop]{sage_cv_gcop()}} for the main estimation workflow.

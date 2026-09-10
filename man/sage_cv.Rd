@@ -46,9 +46,10 @@ A \code{data.frame} with the same columns as \code{\link[=sage_cv_gcop]{sage_cv_
 }
 \description{
 Computes global feature importance (SAGE) using the conditional value
-function estimated via a nonparametric vine copula (TLL kernel pairs)
-fitted with \code{rvinecopulib}. The conditional sampler uses Gaussian-kernel
-importance weighting on a pool of vine draws. Inference follows the same
+function estimated via a vine copula fitted with \code{rvinecopulib}. Conditional
+draws are exact: one D-vine is fitted per Shapley permutation, whose order is
+chosen so that every coalition visited along that permutation can be
+conditioned on through the Rosenblatt transform. Inference follows the same
 one-step cross-fitted Wald procedure as \code{\link[=sage_cv_gcop]{sage_cv_gcop()}}.
 }
 \details{
@@ -56,10 +57,17 @@ Vine copula fitting scales as \eqn{O(p^2)} pair-copulas. With nonparametric
 families the estimator is tractable for \eqn{p \lesssim 10}; consider
 \code{family_set = "parametric"} or \code{\link[=sage_cv_gcop]{sage_cv_gcop()}} for larger problems.
 
-The conditional sampler uses Gaussian-kernel importance reweighting of a
-pool of vine draws (Silverman bandwidth on the pseudo-observation scale),
-followed by exact pinning of the conditioning coordinates. This avoids
-refitting the vine for each coalition subset.
+\strong{Conditional sampling.} The coalitions visited along a Shapley permutation
+are its prefixes. Fitting a D-vine whose variable order is the reversed
+permutation therefore makes each of them a \emph{suffix} of the order, and for a
+D-vine the Rosenblatt transform conditions sequentially from the end of the
+order. Fixing the corresponding components of the transform and redrawing the
+rest as independent uniforms yields exact draws from
+\eqn{X_{-S} \mid X_S = x_S}, with no kernel smoothing and no importance
+weights. The cost is \code{M} vine fits per fold instead of one; the benefit is
+that the sampler is unbiased, whereas kernel reweighting shrinks conditional
+means toward the centre of the distribution at conditioning points in the
+tails.
 }
 \examples{
 \donttest{
@@ -75,8 +83,8 @@ print(result)
 
 }
 \references{
-Gnasso, A. (2026). \emph{Inference for Conditional Shapley Values via Vine Copulas}.
-Manuscript under review.
+Gnasso, A. (2026). \emph{Semiparametric Inference for Conditional Shapley Feature Importance}.
+arXiv preprint, doi:10.48550/arXiv.2609.10313
 }
 \seealso{
 \code{\link[=sage_cv_gcop]{sage_cv_gcop()}} for the faster Gaussian-copula variant;

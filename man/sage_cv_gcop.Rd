@@ -73,8 +73,8 @@ print(result)
 
 }
 \references{
-Gnasso, A. (2026). \emph{Inference for Conditional Shapley Values via Vine Copulas}.
-Manuscript under review.
+Gnasso, A. (2026). \emph{Semiparametric Inference for Conditional Shapley Feature Importance}.
+arXiv preprint, doi:10.48550/arXiv.2609.10313
 
 Covert, I., Lundberg, S., & Lee, S.-I. (2020). Understanding global feature
 contributions with additive importance measures. \emph{NeurIPS}, 33.

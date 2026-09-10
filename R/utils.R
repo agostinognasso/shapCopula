@@ -32,3 +32,14 @@ to_pseudo_obs <- function(X, ecdfs) {
 silverman_bw <- function(n, d) {
   (4 / (d + 2))^(1 / (d + 4)) * n^(-1 / (d + 4))
 }
+
+# Transform selected columns of X to pseudo-observations, clipped to
+# [1/(n+1), n/(n+1)]. `ecdfs_sub` holds the ECDFs of exactly those columns.
+to_pseudo_obs_cols <- function(X, ecdfs_sub, n_train) {
+  X <- as.matrix(X)
+  U <- matrix(NA_real_, nrow(X), ncol(X))
+  for (k in seq_along(ecdfs_sub))
+    U[, k] <- pmin(pmax(ecdfs_sub[[k]](X[, k]), 1 / (n_train + 1)),
+                   n_train / (n_train + 1))
+  U
+}

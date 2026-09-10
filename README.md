@@ -1,13 +1,14 @@
 # shapCopula
 
-**Inference for Conditional Shapley Values via Copulas**
+**Semiparametric Inference for Conditional Shapley Feature Importance**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20392903.svg)](https://doi.org/10.5281/zenodo.20392903)
+[![arXiv](https://img.shields.io/badge/arXiv-2609.10313-b31b1b.svg)](https://doi.org/10.48550/arXiv.2609.10313)
 
 
 R implementation accompanying:
 
-> Gnasso, A. (2026). *Inference for Conditional Shapley Values via Vine Copulas*. Working paper.
+> Gnasso, A. (2026). *Semiparametric Inference for Conditional Shapley Feature Importance*. arXiv:2609.10313. <https://doi.org/10.48550/arXiv.2609.10313>
 
 ---
 
@@ -80,18 +81,20 @@ Supporting functions: `fit_gauss_copula()`, `fit_copula()`.
 
 ## Reproducing paper experiments
 
-The simulation scripts and application code live in `../` (the parent research repository).
+The simulation and application scripts live in the parent research repository,
+under `reproduction/` and `Applicazione/`.
 
 ```bash
-# From the repository root
-Rscript 04_simulations/A_calibration/run_simA_v2_oracle.R
-Rscript 04_simulations/B_power/run_simB_v2.R
-Rscript 04_simulations/C_correlation/run_simC_v2.R
-Rscript 04_simulations/D_misspecification/run_simD_v2.R
-Rscript 05_applications/run_applications_v2.R
+Rscript reproduction/run_simA_calibration.R              # calibration
+Rscript reproduction/run_simB_power.R                    # power
+Rscript reproduction/run_simC_correlation.R              # coverage vs correlation
+Rscript reproduction/run_simD_misspecification.R         # copula misspecification
+Rscript reproduction/run_simE_conditional_vs_marginal.R  # conditional vs marginal
+Rscript Applicazione/run_applications_v2.R               # UCI Concrete, California Housing
 ```
 
 Default tuning: $K = 3$, $M = 30$, $B = 20$. Sensitivity is studied in Appendix C.
+One replication takes about 13 s at $n = 500$, $p = 5$; set `R_REPS` to shorten a run.
 
 ---
 
@@ -135,7 +138,7 @@ For the software specifically:
 ```bibtex
 @software{shapCopula,
   author  = {Agostino Gnasso},
-  title   = {{shapCopula}: Inference for Conditional Shapley Values via Copulas},
+  title   = {{shapCopula}: Semiparametric Inference for Conditional Shapley Feature Importance},
   year    = {2026},
   url     = {https://github.com/agostinognasso/shapCopula}
 }
