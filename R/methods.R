@@ -28,7 +28,13 @@ print.sage_estimate <- function(x, digits = 3, ...) {
       "   folds: ", attr(x, "K") %||% NA,
       "   permutations: ", attr(x, "M") %||% NA,
       "   level: ", 100 * (1 - (attr(x, "alpha") %||% 0.05)), "%\n\n", sep = "")
-  print.data.frame(as.data.frame(x), digits = digits, row.names = FALSE, ...)
+  # Defaults that the caller may override through `...`.  Passing them to
+  # print.data.frame() alongside `...` would raise "formal argument matched by
+  # multiple actual arguments" as soon as the caller supplied one of them.
+  dots <- list(...)
+  if (!"row.names" %in% names(dots)) dots$row.names <- FALSE
+  do.call(print.data.frame,
+          c(list(as.data.frame(x), digits = digits), dots))
   invisible(x)
 }
 
@@ -68,8 +74,13 @@ plot.sage_estimate <- function(x, sort = TRUE, xlab = expression(hat(Psi)[j]),
 
   xlim <- range(c(d$ci_lo, d$ci_hi, 0), finite = TRUE)
   xlim <- xlim + c(-1, 1) * 0.04 * diff(xlim)
-  graphics::plot(NA, xlim = xlim, ylim = c(0.5, n + 0.5), yaxt = "n",
-                 xlab = xlab, ylab = "", main = main, ...)
+  # Same reasoning as in print.sage_estimate(): these are defaults, not fixed
+  # values, so they are dropped whenever `...` already carries them.
+  dots     <- list(...)
+  defaults <- list(xlim = xlim, ylim = c(0.5, n + 0.5), yaxt = "n", ylab = "")
+  defaults <- defaults[setdiff(names(defaults), names(dots))]
+  do.call(graphics::plot,
+          c(list(NA, xlab = xlab, main = main), defaults, dots))
   graphics::abline(v = 0, col = "grey60", lty = 3)
   graphics::axis(2, at = seq_len(n), labels = d$feature, las = 1, tick = FALSE)
   graphics::segments(d$ci_lo, seq_len(n), d$ci_hi, seq_len(n),

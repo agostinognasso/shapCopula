@@ -149,3 +149,19 @@ test_that("print and plot methods run without error", {
   on.exit(dev.off(), add = TRUE)
   expect_silent(plot(result_gcop))
 })
+
+test_that("print and plot accept the arguments they forward to `...`", {
+  # Regression: both methods used to fix row.names / xlim / ylim / ylab and
+  # forward `...` at the same time, so supplying any of them raised
+  # "formal argument matched by multiple actual arguments".
+  expect_output(print(result_gcop, row.names = TRUE), "Conditional SAGE")
+  expect_output(print(result_gcop, row.names = FALSE), "Conditional SAGE")
+  expect_output(print(result_gcop, digits = 5), "Conditional SAGE")
+
+  pdf(NULL)
+  on.exit(dev.off(), add = TRUE)
+  expect_silent(plot(result_gcop, xlim = c(-1, 1)))
+  expect_silent(plot(result_gcop, ylim = c(0, p + 1)))
+  expect_silent(plot(result_gcop, ylab = "feature"))
+  expect_silent(plot(result_gcop, xlim = c(-1, 1), ylab = "feature"))
+})

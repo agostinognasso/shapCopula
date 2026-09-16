@@ -1,3 +1,14 @@
+# shapCopula 0.2.1
+
+## Fixes
+
+* `print()` and `plot()` on a `sage_estimate` fixed `row.names`, and `xlim`,
+  `ylim` and `ylab` respectively, while also forwarding `...` to the underlying
+  method. Supplying any of those arguments, all of them documented as passed
+  through `...`, raised "formal argument matched by multiple actual arguments".
+  They are now treated as defaults that `...` overrides, and the test suite
+  covers each of them.
+
 # shapCopula 0.2.0
 
 ## Conditional sampling
