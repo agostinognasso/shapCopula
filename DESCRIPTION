@@ -1,7 +1,7 @@
 Package: shapCopula
 Type: Package
 Title: Semiparametric Inference for Conditional Shapley Feature Importance
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person(given = "Agostino",
         family = "Gnasso",
